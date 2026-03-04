@@ -39,7 +39,7 @@
     const playlistKey = 'streamhub_userPlaylist';
     let userPlaylist = JSON.parse(localStorage.getItem(playlistKey)) || [];
 
-    // Variables de búsqueda
+    // Variables de búsqueda y scroll
     let lastScrollTop = 0;
     let searchTimeout = null;
 
@@ -109,14 +109,17 @@
                     ep.allowDownload !== undefined ? ep.allowDownload : true
                 );
             } else {
-                // Fallback: abrir en nueva pestaña
-                window.open(ep.mediaUrl, '_blank');
+                // Fallback: mostrar modal de error
+                showErrorModal(
+                    `Reproductor no disponible`,
+                    `No se pudo iniciar la reproducción de "${ep.title}". Intenta recargar la página.`
+                );
             }
         } catch (e) {
             console.error('Error al reproducir:', e);
             showErrorModal(
-                `"${ep.title}" no está disponible`,
-                `Lo sentimos, no se puede reproducir este contenido en este momento. Puedes reportar el problema o solicitarlo a nuestro equipo.`
+                `Error al reproducir`,
+                `Ocurrió un problema al intentar reproducir "${ep.title}".`
             );
         }
     }
@@ -883,17 +886,6 @@
         });
     }
 
-    // ---------- Páginas estáticas (ejemplo) ----------
-    function renderBiblioteca() {
-        return `<div class="text-center py-20"><h1 class="text-3xl font-bold">Biblioteca</h1><p class="text-gray-400 mt-4">Próximamente...</p></div>`;
-    }
-
-    function renderExplorar() {
-        // Podrías generar una cuadrícula con todos los episodios o destacados
-        const all = DATA.slice(0, 20).map(ep => createGridCard(ep)).join('');
-        return `<div><h1 class="text-2xl font-bold mb-6">Explorar</h1><div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-6">${all}</div></div>`;
-    }
-
     // ---------- Inicialización del feed ----------
     function initFeed() {
         console.log('Inicializando feed...');
@@ -932,6 +924,16 @@
         renderPath(path);
     }
 
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
     function renderPath(fullPath) {
         // Separar path y query
         const [path, query] = fullPath.split('?');
@@ -945,18 +947,54 @@
         // 1. Páginas estáticas definidas en window.PAGES
         const page = (window.PAGES || []).find(p => p.url === path);
         if (page) {
+            // Control de visibilidad del header y categorías
+            const topHeader = document.getElementById('top-header');
+            const categoryFilters = document.getElementById('category-filters');
+            if (page.header) {
+                topHeader?.classList.remove('hidden');
+                categoryFilters?.classList.remove('hidden');
+            } else {
+                topHeader?.classList.add('hidden');
+                categoryFilters?.classList.add('hidden');
+            }
+
             const view = document.getElementById('detail-view');
             view.classList.remove('hidden');
-            // Llamar a la función renderizadora correspondiente (debe existir)
-            const renderFn = window.StreamHub[`render${page.titulo}`] || window.StreamHub.renderExplorar; // fallback
-            view.innerHTML = renderFn() || `<div>Página en construcción</div>`;
-            document.title = `${page.titulo} · Balta Media`;
+
+            const renderFuncName = `render${page.titulo}`; // ej. renderBiblioteca
+            if (typeof window[renderFuncName] === 'function') {
+                view.innerHTML = window[renderFuncName]() || '<div>Error al cargar la página</div>';
+                document.title = `${page.titulo} · Balta Media`;
+            } else {
+                // Cargar script dinámicamente
+                loadScript(page.script)
+                    .then(() => {
+                        if (typeof window[renderFuncName] === 'function') {
+                            view.innerHTML = window[renderFuncName]();
+                            document.title = `${page.titulo} · Balta Media`;
+                        } else {
+                            throw new Error('Función de renderizado no encontrada después de cargar script');
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error cargando página especial:', err);
+                        // Fallback a 404
+                        if (typeof window.render404 === 'function') {
+                            view.innerHTML = window.render404();
+                        } else {
+                            view.innerHTML = '<div class="text-center py-20"><h2>404 - Página no encontrada</h2></div>';
+                        }
+                    });
+            }
             return;
         }
 
         // 2. Ruta raíz
         if (path === '/' || path === '') {
             document.getElementById('feed-view').classList.remove('hidden');
+            // Asegurar que header y categorías estén visibles
+            document.getElementById('top-header')?.classList.remove('hidden');
+            document.getElementById('category-filters')?.classList.remove('hidden');
             document.title = 'Balta Media · Conocimiento en acción';
             return;
         }
@@ -1028,12 +1066,17 @@
     function renderNotFound() {
         const container = document.getElementById('detail-view');
         container.classList.remove('hidden');
-        container.innerHTML = `
-            <div class="detail-404">
-                <h2 class="text-3xl sm:text-4xl font-bold mb-4">404</h2>
-                <p class="text-lg sm:text-xl">Este contenido no está disponible</p>
-            </div>
-        `;
+        if (typeof window.render404 === 'function') {
+            container.innerHTML = window.render404();
+        } else {
+            container.innerHTML = `
+                <div class="detail-404">
+                    <h2 class="text-3xl sm:text-4xl font-bold mb-4">404</h2>
+                    <p class="text-lg sm:text-xl">Este contenido no está disponible</p>
+                    <button onclick="StreamHub.navigate('/')" class="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full">Volver al inicio</button>
+                </div>
+            `;
+        }
         document.title = 'Página no encontrada · Balta Media';
     }
 
@@ -1319,9 +1362,7 @@
         // Playlist
         addToUserPlaylist,
         isInPlaylist,
-        // Renderizado (para páginas estáticas)
-        renderBiblioteca,
-        renderExplorar,
+        // Renderizado (para páginas estáticas, se pueden añadir más)
         // Inicialización
         init
     };
