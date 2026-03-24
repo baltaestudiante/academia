@@ -300,7 +300,7 @@ const episodiosBase = [
         allowDownload: false,
         seriesid: "derecho-civil-3",
         detailUrl: '/derecho-civil-3/clase-1',
-        subtitlesUrl 'https://media.baltaanay.org/text/civil3/clase1.vtt'
+        subtitlesUrl: 'https://media.baltaanay.org/text/civil3/clase1.vtt'
     },
     {
         id: "fuentes-de-las-obligaciones",
