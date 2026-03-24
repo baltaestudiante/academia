@@ -1,9 +1,12 @@
-window.render404 = function() {
-    return `
+// 404.js
+export function render(container) {
+    container.innerHTML = `
         <div class="text-center py-20">
-            <h1 class="text-4xl font-bold mb-4">404</h1>
-            <p class="text-gray-400 text-lg mb-8">Este contenido no está disponible</p>
-            <a href="/academia/" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-full transition">Volver al inicio</a>
+            <h1 class="text-6xl font-bold text-white mb-4">404</h1>
+            <p class="text-xl text-gray-400 mb-8">Página no encontrada</p>
+            <a href="/" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-3 rounded-full transition" data-link>Volver al inicio</a>
         </div>
     `;
-};
+}
+
+export const header = true;
