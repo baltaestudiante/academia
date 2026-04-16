@@ -1,7 +1,7 @@
 // main.js - Router principal (versión definitiva y limpia)
 
 import { DATA, renderFeed, renderGrid, renderEpisodio, renderSerie, renderCategoryPills } from './show.js';
-import { getEpisodioByDetailUrl, getSerieByUrl, getAllEpisodios } from './episodios.js';
+import { getEpisodioByDetailUrl, getSerieByUrl, getAllEpisodios } from './api/episodios.js';
 import './player.js';
 
 // Actualizar etiquetas canonical y alternate
